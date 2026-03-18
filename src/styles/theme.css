@@ -245,3 +245,53 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* 靈敏度拉桿精緻化 (Premium Slider Styling) */
+input[type="range"].slider-thumb-premium {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  width: 100%;
+}
+
+input[type="range"].slider-thumb-premium::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  box-shadow: 0 0 10px var(--primary), inset 0 0 5px rgba(0, 0, 0, 0.2);
+  border: 2px solid var(--background);
+  transition: all 0.2s ease;
+  margin-top: -6px;
+}
+
+input[type="range"].slider-thumb-premium::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 8px;
+  cursor: pointer;
+  background: rgba(0, 255, 136, 0.1);
+  border-radius: 4px;
+  border: 1px solid rgba(0, 255, 136, 0.2);
+}
+
+input[type="range"].slider-thumb-premium::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  box-shadow: 0 0 10px var(--primary), inset 0 0 5px rgba(0, 0, 0, 0.2);
+  border: 2px solid var(--background);
+  transition: all 0.2s ease;
+}
+
+input[type="range"].slider-thumb-premium::-moz-range-track {
+  width: 100%;
+  height: 8px;
+  cursor: pointer;
+  background: rgba(0, 255, 136, 0.1);
+  border-radius: 4px;
+  border: 1px solid rgba(0, 255, 136, 0.2);
+}

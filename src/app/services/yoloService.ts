@@ -35,13 +35,20 @@ export class YOLOService {
 
             const baseUrl = import.meta.env.BASE_URL || "/";
             ort.env.wasm.wasmPaths = `${baseUrl}wasm/`;
-            ort.env.wasm.numThreads = 1;
+            
+            // 🔥 [Optimization] 加速方案：
+            // 1. 啟用多執行緒 (通常 4 為行動裝置與網頁最佳平衡點)
+            ort.env.wasm.numThreads = 4; 
+            // 2. 啟動 WebWorker 代理，避免模型載入與編譯時卡住 UI 主執行緒
+            ort.env.wasm.proxy = true;
 
-            const modelUrl = `${baseUrl}best.onnx?v=1.0.2`;
+            const modelUrl = `${baseUrl}best.onnx?v=1.1.0`;
             
             this.session = await ort.InferenceSession.create(modelUrl, {
                 executionProviders: ["webgl", "wasm"],
-                graphOptimizationLevel: "all"
+                graphOptimizationLevel: "all",
+                enableCpuMemArena: true,
+                enableMemPattern: true
             });
 
             this.isReady = true;

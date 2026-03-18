@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { RefObject, useState, useEffect, useRef } from "react";
-import { Camera, Loader2, RefreshCw, Sparkles, Brain } from "lucide-react";
+import { Camera, Loader2, RefreshCw, Sparkles, Brain, SlidersHorizontal } from "lucide-react";
 import { useIngredients } from "../../services/IngredientContext";
 import { llmService } from "../../services/llmService";
 import { yoloService } from "../../services/yoloService";
@@ -23,7 +23,7 @@ interface CameraViewProps {
  * 攝影機掃描視圖 (CameraView - ONNX 離線版)
  */
 export function CameraView({ videoRef }: CameraViewProps) {
-    const { addItem, tempDetections, clearTempDetections, settings } = useIngredients();
+    const { addItem, tempDetections, clearTempDetections, settings, updateSettings } = useIngredients();
     const [isScanning, setIsScanning] = useState(false);
     const [scanMode, setScanMode] = useState<"local" | "cloud">("local");
     const [currentBoxes, setCurrentBoxes] = useState<any[]>([]);
@@ -303,11 +303,37 @@ export function CameraView({ videoRef }: CameraViewProps) {
             )}
 
 
-            <div className="w-full mt-8 space-y-3 px-2">
+            <div className="w-full mt-6 space-y-4 px-2">
+                {/* 靈敏度拉桿 (Sensitivity Slider) */}
+                <div className="bg-[#0f2e24]/40 backdrop-blur-md border border-primary/10 rounded-2xl p-4 transition-all hover:border-primary/30">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2 text-primary font-black text-[10px] tracking-widest uppercase">
+                            <SlidersHorizontal size={14} />
+                            辨識靈敏度 (YOLO Threshold)
+                        </div>
+                        <span className="text-primary font-mono text-xs bg-primary/20 px-2 py-0.5 rounded-full">
+                            {Math.round(settings.confidenceThreshold * 100)}%
+                        </span>
+                    </div>
+                    <input
+                        type="range"
+                        min="0.05"
+                        max="0.8"
+                        step="0.01"
+                        value={settings.confidenceThreshold}
+                        onChange={(e) => updateSettings({ confidenceThreshold: parseFloat(e.target.value) })}
+                        className="w-full h-2 bg-primary/10 rounded-lg appearance-none cursor-pointer accent-primary slider-thumb-premium"
+                    />
+                    <div className="flex justify-between mt-2 text-[8px] text-primary/40 font-black uppercase tracking-tighter">
+                        <span>更靈敏 (多雜訊)</span>
+                        <span>更精準 (過濾雜訊)</span>
+                    </div>
+                </div>
+
                 <button
                     onClick={handleScan}
                     disabled={isScanning || (scanMode === "local" && !modelLoaded)}
-                    className="w-full bg-primary text-background py-3 rounded-2xl font-black text-base flex items-center justify-center gap-2 hover:brightness-110 transition-all active:scale-[0.98] shadow-[0_8px_30px_var(--primary-glow)] disabled:opacity-50"
+                    className="w-full bg-primary text-background py-3 rounded-2xl font-black text-base flex items-center justify-center gap-2 hover:brightness-110 transition-all active:scale-[0.98] shadow-[0_8px_30px_rgba(0,255,136,0.2)] disabled:opacity-50"
                 >
                     {isScanning ? <Loader2 size={24} className="animate-spin" /> : scanMode === "cloud" ? <Sparkles size={24} strokeWidth={3} /> : <Camera size={24} strokeWidth={3} />}
                     <span className="truncate">{isScanning ? "正在分析介面..." : scanMode === "cloud" ? "Gemini 深度辨識" : "開始識別"}</span>
