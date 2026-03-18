@@ -1,0 +1,22 @@
+{
+    "name": "KITCHEN AI - Culinary Intelligence",
+    "short_name": "KitchenAI",
+    "description": "AI-powered grocery scanning and recipe intelligence system.",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#0f2e24",
+    "theme_color": "#00ff88",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "apple-icon.png",
+            "type": "image/png",
+            "sizes": "1024x1024"
+        },
+        {
+            "src": "vite.svg",
+            "type": "image/svg+xml",
+            "sizes": "192x192 512x512"
+        }
+    ]
+}
