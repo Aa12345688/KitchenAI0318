@@ -9,11 +9,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="apple-touch-icon" href="apple-icon.png" />
   <link rel="manifest" href="manifest.json" />
-  <script src="wasm/ort.min.js"></script>
+  <!-- 使用 CDN 版本確保包含 WebGPU/WebGL 背端 (1.20.1+ 推薦) -->
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
   <!-- 預先加載大體積 YOLO 模型 (Preload 20MB Model) -->
   <link rel="preload" href="best.onnx?v=1.1.2" as="fetch" crossorigin="anonymous">
   <title>KITCHEN AI LITE</title>
-  <script type="module" crossorigin src="/KitchenAI0318/assets/index-CgyS1UcJ.js"></script>
+  <link rel="icon" type="image/svg+xml" href="vite.svg" />
+  <script type="module" crossorigin src="/KitchenAI0318/assets/index-CSh28MZm.js"></script>
   <link rel="modulepreload" crossorigin href="/KitchenAI0318/assets/react-vendor-xjxIsVwp.js">
   <link rel="modulepreload" crossorigin href="/KitchenAI0318/assets/ui-vendor-9lFCEOEE.js">
   <link rel="stylesheet" crossorigin href="/KitchenAI0318/assets/index-CM8dtGh_.css">
