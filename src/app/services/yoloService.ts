@@ -10,6 +10,7 @@ export class YOLOService {
     private isInitializing: boolean = false;
     private isReady: boolean = false;
     private lastError: string | null = null;
+    private forceWasm: boolean = false; // 新增：強制 WASM 模式 (Safe Mode)
 
     // 類別名稱對照表
     public readonly CLASS_NAMES = [
@@ -48,7 +49,8 @@ export class YOLOService {
                 `${baseUrl}best_universal.onnx?v=1.1.3`
             ];
             
-            const providers = ["webgpu", "webgl", "wasm"];
+            // 🚀 [Failover Sequence] 根據 Safe Mode 調整順序
+            const providers = this.forceWasm ? ["wasm"] : ["webgpu", "webgl", "wasm"];
             let recentError = "";
             
             for (const modelUrl of modelUrls) {
@@ -116,11 +118,16 @@ export class YOLOService {
     /**
      * 強制重新載入：清除狀態並重新執行預熱
      */
-    public async forceReload() {
+    public async forceReload(wasmOnly: boolean = false) {
+        this.forceWasm = wasmOnly;
         this.isReady = false;
         this.isInitializing = false;
         this.session = null;
         await this.prewarm();
+    }
+
+    public isSafeMode() {
+        return this.forceWasm;
     }
 }
 

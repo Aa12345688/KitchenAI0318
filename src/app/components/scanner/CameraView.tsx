@@ -31,6 +31,7 @@ export function CameraView({ videoRef }: CameraViewProps) {
     const [isModelLoading, setIsModelLoading] = useState(yoloService.isBusy());
     const [modelFailed, setModelFailed] = useState(yoloService.isFailed());
     const [modelError, setModelError] = useState<string | null>(yoloService.getError());
+    const [cameraError, setCameraError] = useState<string | null>(null);
     const [showDiagModal, setShowDiagModal] = useState(false);
     const sessionRef = useRef<any>(yoloService.getSession());
 
@@ -109,14 +110,14 @@ export function CameraView({ videoRef }: CameraViewProps) {
         }
     };
 
-    const handleForceReloadYOLO = async () => {
+    const handleForceReloadYOLO = async (wasmOnly: boolean = false) => {
         hapticService.impact();
         setIsModelLoading(true);
         setModelLoaded(false);
         notificationService.send("重新加載中", "正在強制刷新 YOLO 核心引擎...");
         
         try {
-            await yoloService.forceReload();
+            await yoloService.forceReload(wasmOnly);
             if (yoloService.isLoaded()) {
                 setModelLoaded(true);
                 sessionRef.current = yoloService.getSession();
@@ -222,8 +223,11 @@ export function CameraView({ videoRef }: CameraViewProps) {
                 setCurrentBoxes(nmsDetections);
                 nmsDetections.forEach(det => addItem(det));
             }
-        } catch (error) {
+        } catch (error: any) {
             console.warn("Local Scan Error:", error);
+            if (error.name === "NotReadableError" || error.name === "NotAllowedError") {
+                setCameraError("無法存取攝影機，請確授權權限並關閉其他相機應用。");
+            }
         } finally {
             setIsScanning(false);
         }
@@ -329,6 +333,20 @@ export function CameraView({ videoRef }: CameraViewProps) {
                         muted
                         className={`w-full h-full object-cover transition-all duration-700 ${isScanning ? 'scale-105 brightness-110' : 'scale-100 brightness-100'}`}
                     />
+
+                    {/* Camera Error Overlay */}
+                    {cameraError && (
+                        <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center text-white">
+                            <Camera className="w-12 h-12 text-red-500 mb-4 animate-pulse" />
+                            <p className="text-sm font-bold mb-4">{cameraError}</p>
+                            <button 
+                                onClick={() => window.location.reload()}
+                                className="px-6 py-2 bg-primary text-[#0f2e24] rounded-full font-black text-xs uppercase"
+                            >
+                                重新整理頁面
+                            </button>
+                        </div>
+                    )}
 
                     {/* Bounding Box Overlay */}
                     <div className="absolute inset-0 z-10 pointer-events-none">
@@ -446,7 +464,22 @@ export function CameraView({ videoRef }: CameraViewProps) {
 
                             <section className="bg-blue-900/20 p-4 rounded-2xl border border-blue-500/20">
                                 <p className="font-bold text-blue-300 mb-1">💡 目前狀態：智慧應變啟動</p>
-                                <p>系統偵測到錯誤後，已自動為您切換至 **Gemini 雲端辨識模式**，您可以照常掃描食材，不受此錯誤影響。</p>
+                                <p>系統偵測到錯誤後，已自動為您切換至 **Gemini 雲端辨識模式**，您可以照常掃描食材。</p>
+                            </section>
+
+                            <section className="bg-amber-500/10 p-4 rounded-2xl border border-amber-500/20">
+                                <p className="font-bold text-amber-400 mb-2">📱 手機用戶：如果畫面卡住或無法啟動</p>
+                                <ul className="list-disc list-inside space-y-1 text-xs opacity-80">
+                                    <li>部分安卓手機 WebGPU 不穩定，可以嘗試下方「安全模式」。</li>
+                                    <li>確保不是使用「無痕模式」開啟 (會阻擋核心資源)。</li>
+                                    <li>建議使用最新版 Chrome 或 Safari。</li>
+                                </ul>
+                                <button
+                                    onClick={() => handleForceReloadYOLO(true)}
+                                    className="w-full mt-4 bg-amber-500 text-[#0f2e24] py-3 rounded-xl font-bold transition-all active:scale-[0.98]"
+                                >
+                                    啟動「全相容安全模式」(WASM)
+                                </button>
                             </section>
                         </div>
 
