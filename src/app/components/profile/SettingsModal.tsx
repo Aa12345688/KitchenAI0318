@@ -100,17 +100,23 @@ export function SettingsModal({
                             </div>
 
                             <div>
-                                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Google Gemini API KEY</label>
+                                <div className="flex justify-between items-end mb-2">
+                                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Google Gemini API KEY</label>
+                                    <div className="text-[8px] font-bold text-primary/60 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                                        已偵測到 {llmService.getMaskedApiKeys().length} 組金鑰
+                                    </div>
+                                </div>
                                 <div className="relative">
                                     <input 
                                         type="password" 
                                         value={keyInput}
                                         onChange={(e) => setKeyInput(e.target.value)}
-                                        placeholder="請輸入 API Key..."
+                                        placeholder="KEY1, KEY2, KEY3..."
                                         className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white font-bold text-sm focus:border-primary outline-none transition-all placeholder:text-gray-700" 
                                     />
                                     {keyInput && <button onClick={handleKeySave} className="absolute right-3 top-1/2 -translate-y-1/2 bg-primary text-background text-[8px] font-black px-3 py-2 rounded-xl uppercase tracking-widest active:scale-95 transition-all">更新</button>}
                                 </div>
+                                <p className="text-[8px] font-bold text-gray-500 uppercase mt-2 px-1">💡 提示：輸入多組金鑰（以逗號隔開）可提升辨識配額並避免 429 錯誤。</p>
                             </div>
 
                             <button

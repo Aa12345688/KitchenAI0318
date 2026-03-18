@@ -75,13 +75,31 @@ class LLMService {
     }
 
     private getApiKeys(): string[] {
-        // Prioritize custom keys entered via UI
+        // 1. 優先使用用戶在 UI 手動輸入的金鑰 (Prioritize custom keys entered via UI)
         if (this.customApiKeys.length > 0) {
             return this.customApiKeys;
         }
 
-        const keys = import.meta.env.VITE_LLM_API_KEY || "";
-        return keys.split(",").map((k: string) => k.trim()).filter((k: string) => k !== "");
+        // 2. 自動偵測環境變數 (Auto-detect environment variables)
+        const keys: string[] = [];
+        
+        // 嘗試讀取逗號隔開的主變數
+        const mainKey = import.meta.env.VITE_LLM_API_KEY || "";
+        if (mainKey) {
+            keys.push(...mainKey.split(",").map((k: string) => k.trim()).filter((k: string) => k !== ""));
+        }
+
+        // 嘗試讀取序號形式的變數 (VITE_LLM_API_KEY_1, _2, _3...)
+        // 注意：Vite 的 import.meta.env 只能讀取以 VITE_ 開頭且在編譯時已定義的變數
+        for (let i = 1; i <= 5; i++) {
+            const keyName = `VITE_LLM_API_KEY_${i}`;
+            const val = (import.meta.env as any)[keyName];
+            if (val && !keys.includes(val.trim())) {
+                keys.push(val.trim());
+            }
+        }
+
+        return keys;
     }
 
     private isKeyCoolingDown(key: string): boolean {
