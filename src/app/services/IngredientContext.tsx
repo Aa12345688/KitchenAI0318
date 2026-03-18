@@ -109,7 +109,7 @@ export function IngredientProvider({ children }: { children: ReactNode }) {
 
     // Load from localStorage on mount & Pre-warm YOLO
     useEffect(() => {
-        yoloService.prewarm(); // 全域預熱模型
+        yoloService.prewarm(); // [Optimized] 全域自動預熱，確保進入掃描頁時已就緒
         
         const saved = localStorage.getItem("scannedIngredients");
         const savedRecs = localStorage.getItem("recommendedRecipes");

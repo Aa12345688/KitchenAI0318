@@ -9,7 +9,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="apple-touch-icon" href="apple-icon.png" />
   <link rel="manifest" href="manifest.json" />
-  <script src="/wasm/ort.min.js"></script>
+  <!-- 使用 FULL BUNDLE 版本以支援 WebGPU/WebGL，並由本地加載 -->
+  <script src="wasm/ort.all.min.js"></script>
+  <!-- 預先加載大體積 YOLO 模型 (Preload 20MB Model) -->
+  <link rel="preload" href="best.onnx?v=1.1.3" as="fetch" crossorigin="anonymous">
   <title>KITCHEN AI LITE</title>
 </head>
 

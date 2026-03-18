@@ -15,7 +15,7 @@ export default defineConfig({
     compression(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['apple-icon.png', 'vite.svg'],
+      includeAssets: ['apple-icon.png'],
       manifest: {
         name: 'AI Fridge for LLM - Culinary Intelligence',
         short_name: 'FridgeLLM',
@@ -30,11 +30,6 @@ export default defineConfig({
             sizes: '1024x1024',
             type: 'image/png'
           },
-          {
-            src: 'vite.svg',
-            sizes: '192x192 512x512',
-            type: 'image/svg+xml'
-          }
         ]
       },
       workbox: {

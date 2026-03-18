@@ -27,8 +27,12 @@ export function CameraView({ videoRef }: CameraViewProps) {
     const [isScanning, setIsScanning] = useState(false);
     const [scanMode, setScanMode] = useState<"local" | "cloud">("local");
     const [currentBoxes, setCurrentBoxes] = useState<any[]>([]);
-    const [modelLoaded, setModelLoaded] = useState(false);
-    const sessionRef = useRef<any>(null);
+    const [modelLoaded, setModelLoaded] = useState(yoloService.isLoaded());
+    const [isModelLoading, setIsModelLoading] = useState(yoloService.isBusy());
+    const [modelFailed, setModelFailed] = useState(yoloService.isFailed());
+    const [modelError, setModelError] = useState<string | null>(yoloService.getError());
+    const [showDiagModal, setShowDiagModal] = useState(false);
+    const sessionRef = useRef<any>(yoloService.getSession());
 
     // 類別名稱對照表 (由 yoloService 統一管理)
     const CLASS_NAMES = yoloService.CLASS_NAMES;
@@ -39,10 +43,25 @@ export function CameraView({ videoRef }: CameraViewProps) {
             setModelLoaded(true);
             sessionRef.current = yoloService.getSession();
         } else {
-            // 如果尚未預熱完成，則持續輪詢
+            // 如果尚未預熱完成，則持續輪詢狀態
             const timer = setInterval(() => {
-                if (yoloService.isLoaded()) {
-                    setModelLoaded(true);
+                const loaded = yoloService.isLoaded();
+                const busy = yoloService.isBusy();
+                const failed = yoloService.isFailed();
+                
+                setModelLoaded(loaded);
+                setIsModelLoading(busy);
+                setModelFailed(failed);
+                setModelError(yoloService.getError());
+                
+                // 🚀 [Auto Fallback] 如果離線引擎初始化失敗，自動切換到 Gemini 雲端模式
+                if (failed && !loaded && scanMode === "local" && !isScanning) {
+                    console.warn("⚠️ [Scanner] YOLO 核心初始化失敗，自動切換模式");
+                    setScanMode("cloud");
+                    // 這裡不使用 NotificationService 以免重複彈窗，改在 Badge 顯示
+                }
+
+                if (loaded) {
                     sessionRef.current = yoloService.getSession();
                     clearInterval(timer);
                 }
@@ -62,11 +81,51 @@ export function CameraView({ videoRef }: CameraViewProps) {
     }, []);
 
     const handleScan = async () => {
-        hapticService.medium(); // 觸感震動回饋
+        hapticService.medium();
         if (scanMode === "local") {
-            await handleLocalScan();
+            if (modelLoaded) {
+                await handleLocalScan();
+            }
         } else {
             await handleGeminiScan();
+        }
+    };
+
+    const handleStartLocalYOLO = async () => {
+        if (isModelLoading || modelLoaded) return;
+        setIsModelLoading(true);
+        notificationService.send("YOLO 核心啟動中", "正在載入辨識引擎，請稍候...");
+        
+        try {
+            await yoloService.prewarm();
+            if (yoloService.isLoaded()) {
+                setModelLoaded(true);
+                sessionRef.current = yoloService.getSession();
+            }
+        } catch (e) {
+            console.error("YOLO Load error:", e);
+        } finally {
+            setIsModelLoading(yoloService.isBusy());
+        }
+    };
+
+    const handleForceReloadYOLO = async () => {
+        hapticService.impact();
+        setIsModelLoading(true);
+        setModelLoaded(false);
+        notificationService.send("重新加載中", "正在強制刷新 YOLO 核心引擎...");
+        
+        try {
+            await yoloService.forceReload();
+            if (yoloService.isLoaded()) {
+                setModelLoaded(true);
+                sessionRef.current = yoloService.getSession();
+                notificationService.send("✅ 完成", "引擎已重新掛載就緒");
+            }
+        } catch (e) {
+            notificationService.send("❌ 錯誤", "重新加載失敗，請檢查網路");
+        } finally {
+            setIsModelLoading(yoloService.isBusy());
         }
     };
 
@@ -234,11 +293,26 @@ export function CameraView({ videoRef }: CameraViewProps) {
                 </div>
 
                 {/* AI Status Badge */}
-                <div className={`absolute top-16 left-1/2 transform -translate-x-1/2 z-20 bg-[#0f2e24]/80 backdrop-blur-md border ${!navigator.onLine && scanMode === "cloud" ? 'border-red-500' : !modelLoaded && scanMode === "local" ? 'border-red-400' : isScanning ? 'border-amber-400' : 'border-primary'} rounded-full px-4 py-1.5 flex items-center gap-2 shadow-[0_0_15px_rgba(0,255,136,0.3)] transition-colors duration-500`}>
-                    <div className={`w-2 h-2 rounded-full ${!navigator.onLine && scanMode === "cloud" ? 'bg-red-500 animate-pulse' : !modelLoaded && scanMode === "local" ? 'bg-red-400' : isScanning ? 'bg-amber-400 animate-pulse' : 'bg-primary'} shadow-[0_0_8px_currentColor]`} />
-                    <span className={`text-[10px] font-black tracking-widest ${!navigator.onLine && scanMode === "cloud" ? 'text-red-500' : !modelLoaded && scanMode === "local" ? 'text-red-400' : isScanning ? 'text-amber-400' : 'text-primary'} uppercase`}>
-                        {!navigator.onLine && scanMode === "cloud" ? "偵測到離線：無法使用雲端 AI" : scanMode === "cloud" ? (isScanning ? "Cloud AI 串接中..." : "Gemini 視覺系統已就緒") : (!modelLoaded ? "系統核心啟動中..." : isScanning ? "正在為您辨識..." : "掃描系統已就緒")}
+                <div 
+                    onClick={() => modelFailed && setShowDiagModal(true)}
+                    className={`absolute top-16 left-1/2 transform -translate-x-1/2 z-20 bg-[#0f2e24]/80 backdrop-blur-md border ${!navigator.onLine && scanMode === "cloud" ? 'border-red-500' : modelFailed ? 'border-red-500 cursor-help' : scanMode === "local" && !modelLoaded && !isModelLoading ? 'border-primary/40' : scanMode === "local" && isModelLoading ? 'border-amber-400' : 'border-primary'} rounded-full px-4 py-1.5 flex items-center gap-2 shadow-[0_0_15px_rgba(0,255,136,0.2)] transition-all duration-500 hover:scale-105 active:scale-95`}
+                >
+                    <div className={`w-2 h-2 rounded-full ${!navigator.onLine && scanMode === "cloud" ? 'bg-red-500 animate-pulse' : modelFailed ? 'bg-red-500' : scanMode === "local" && !modelLoaded && !isModelLoading ? 'bg-primary/40' : scanMode === "local" && isModelLoading ? 'bg-amber-400 animate-pulse' : 'bg-primary'} shadow-[0_0_8px_currentColor]`} />
+                    <span className={`text-[10px] font-black tracking-widest ${!navigator.onLine && scanMode === "cloud" ? 'text-red-500' : modelFailed ? 'text-red-500' : scanMode === "local" && !modelLoaded && !isModelLoading ? 'text-primary/40' : scanMode === "local" && isModelLoading ? 'text-amber-400' : 'text-primary'} uppercase`}>
+                        {!navigator.onLine && scanMode === "cloud" ? "偵測到離線：無法使用雲端 AI" : 
+                         scanMode === "cloud" ? (isScanning ? "Cloud AI 串接中..." : "Gemini 視覺系統已就緒") : 
+                         modelFailed ? "效能建議：點擊查看解決方案" :
+                         (isModelLoading ? "引擎載入中 (20MB)..." : !modelLoaded ? "離線核心已卸載" : isScanning ? "正在為您辨識..." : "離線掃描系統已就緒")}
                     </span>
+                    {scanMode === "local" && (
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); handleForceReloadYOLO(); }}
+                            title="重新加載離線核心"
+                            className="ml-1 p-1 hover:bg-white/10 rounded-full transition-colors"
+                        >
+                            <RefreshCw size={12} className={`${isModelLoading ? 'animate-spin' : ''} text-primary/60`} />
+                        </button>
+                    )}
                 </div>
 
                 {/* 攝影機渲染區 (Camera Viewport) */}
@@ -309,7 +383,7 @@ export function CameraView({ videoRef }: CameraViewProps) {
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2 text-primary font-black text-[10px] tracking-widest uppercase">
                             <SlidersHorizontal size={14} />
-                            辨識靈敏度 (YOLO Threshold)
+                            信心指數 (Confidence Threshold)
                         </div>
                         <span className="text-primary font-mono text-xs bg-primary/20 px-2 py-0.5 rounded-full">
                             {Math.round(settings.confidenceThreshold * 100)}%
@@ -332,13 +406,59 @@ export function CameraView({ videoRef }: CameraViewProps) {
 
                 <button
                     onClick={handleScan}
-                    disabled={isScanning || (scanMode === "local" && !modelLoaded)}
-                    className="w-full bg-primary text-background py-3 rounded-2xl font-black text-base flex items-center justify-center gap-2 hover:brightness-110 transition-all active:scale-[0.98] shadow-[0_8px_30px_rgba(0,255,136,0.2)] disabled:opacity-50"
+                    disabled={isScanning || (scanMode === "local" && !modelLoaded) || (!navigator.onLine && scanMode === "cloud")}
+                    className={`w-full ${scanMode === "local" && !modelLoaded ? 'bg-primary/10 text-primary/40 border border-primary/10' : 'bg-primary text-background shadow-[0_8px_30px_rgba(0,255,136,0.2)]'} py-3 rounded-2xl font-black text-base flex items-center justify-center gap-2 hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-50`}
                 >
-                    {isScanning ? <Loader2 size={24} className="animate-spin" /> : scanMode === "cloud" ? <Sparkles size={24} strokeWidth={3} /> : <Camera size={24} strokeWidth={3} />}
-                    <span className="truncate">{isScanning ? "正在分析介面..." : scanMode === "cloud" ? "Gemini 深度辨識" : "開始識別"}</span>
+                    {isScanning || (scanMode === "local" && isModelLoading) ? <Loader2 size={24} className="animate-spin" /> : scanMode === "cloud" ? <Sparkles size={24} strokeWidth={3} /> : modelLoaded ? <Camera size={24} strokeWidth={3} /> : <Loader2 size={24} className="animate-spin" />}
+                    <span className="truncate">
+                        {isScanning ? "正在分析介面..." : 
+                         (scanMode === "local" && isModelLoading) ? "核心編譯中..." : 
+                         (scanMode === "local" && modelFailed) ? "核心不相容" :
+                         (scanMode === "local" && !modelLoaded) ? "等待引擎就緒..." :
+                         scanMode === "cloud" ? "Gemini 深度辨識" : "開始識別"}
+                    </span>
                 </button>
             </div>
+            {/* Compatibility Diagnostic Modal */}
+            {showDiagModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-12">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowDiagModal(false)} />
+                    <div className="relative w-full max-w-lg bg-[#0f2e24] border border-red-500/30 rounded-[2.5rem] p-8 shadow-2xl overflow-y-auto max-h-[80vh]">
+                        <h3 className="text-red-400 text-xl font-black mb-4 flex items-center gap-3">
+                            <Brain className="animate-pulse" />
+                            離線核心相容性報告
+                        </h3>
+                        
+                        <div className="space-y-6 text-primary/80 text-sm leading-relaxed">
+                            <section className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                                <p className="font-bold text-red-300 mb-2">🔴 發生了什麼事？</p>
+                                <p>您目前使用的 `best.onnx` 模型採用了 **FLOAT16 (半精度)** 格式。雖然這能減小檔案體積，但許多瀏覽器的純 CPU 模式不支援這種特殊運算，導致初始化失敗。</p>
+                            </section>
+
+                            <section>
+                                <p className="font-bold text-primary mb-3 text-base">🛠️ 徹底修復：產生 100% 相容模型</p>
+                                <p className="mb-4">我已經为您在專案中建立了一個自動轉換腳本，請在終端機執行：</p>
+                                <div className="bg-black/40 p-4 rounded-xl border border-primary/20 font-mono text-xs overflow-x-auto whitespace-nowrap text-primary select-all">
+                                    python scripts/fix_model.py
+                                </div>
+                                <p className="mt-4 text-[11px] opacity-60">此指令會將 `best.onnx` 轉換為 `best_fp32.onnx`。之後只要將新檔案更名覆蓋原始檔案，即可達成跨平台 100% 相容。</p>
+                            </section>
+
+                            <section className="bg-blue-900/20 p-4 rounded-2xl border border-blue-500/20">
+                                <p className="font-bold text-blue-300 mb-1">💡 目前狀態：智慧應變啟動</p>
+                                <p>系統偵測到錯誤後，已自動為您切換至 **Gemini 雲端辨識模式**，您可以照常掃描食材，不受此錯誤影響。</p>
+                            </section>
+                        </div>
+
+                        <button 
+                            onClick={() => setShowDiagModal(false)}
+                            className="w-full mt-8 bg-primary text-[#0f2e24] py-4 rounded-2xl font-black transition-all active:scale-[0.98]"
+                        >
+                            我知道了，繼續辨識
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
